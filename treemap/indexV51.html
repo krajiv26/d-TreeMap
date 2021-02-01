@@ -1,0 +1,134 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>World Population</title>
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+    <script src="d3-zoomable-treemap.js"></script>
+    <style>
+    body { margin:0;position:fixed;top:0;right:0;bottom:0;left:0; }
+    
+    text {
+      pointer-events: none;
+    }
+    .grandparent{
+      display: none;
+    }
+    .grandparent text {
+      font-weight: bold;
+    }
+    rect {
+      fill: none;
+      stroke: #fff;
+    }
+    rect.parent,
+    .grandparent rect {
+      stroke-width: 2px;
+    }
+    .grandparent rect {
+      fill: orange;
+    }
+    .grandparent:hover rect {
+      fill: #ee9700;
+    }
+    .children rect.parent,
+    .grandparent rect {
+      cursor: pointer;
+    }
+
+    .depth rect.parent{
+      cursor: pointer;
+    }
+
+    .children rect.parent {
+      fill: #bbb;
+      fill-opacity: 0.5;
+    }
+    .children:hover rect.child {
+      fill: #bbb;
+    }
+    
+    </style>
+</head>
+<body>
+    <p id="chart"></p>
+    <div id="domainDrillDown"></div>
+    <script>
+  // d3.json("countries.json", function(error, data) {
+  //   if (error) throw error;
+
+  d3.json("countries.json").then(function(data){
+    const options = {
+      "rootName": "World",
+      "level": ["key"],
+      "lastchildrenkey1":'key',
+      "lastchildrenkey2":'value',
+      }
+
+      function getListJson(data,opts){
+        var newData = { name :opts.rootName, children : [] }
+        var levels = opts.level;
+
+          // For each data row, loop through the expected levels traversing the output tree
+          data.forEach(function(d){
+              // Keep this as a reference to the current level
+              var depthCursor = newData.children;
+              // Go down one level at a time
+              levels.forEach(function( property, depth ){
+
+                  // Look to see if a branch has already been created
+                  var index;
+                  depthCursor.forEach(function(child,i){
+                      if ( d[property] == child.name ) index = i;
+                  });
+                  // Add a branch if it isn't there
+                  if ( isNaN(index) ) {
+                      depthCursor.push({ name : d[property], children : []});
+                      index = depthCursor.length - 1;
+                  }
+                  // Now reference the new child array as we go deeper into the tree
+                  depthCursor = depthCursor[index].children;
+                  // This is a leaf, so add the last element to the specified branch
+                  if ( depth === levels.length - 1 ) depthCursor.push({ name : d[opts.lastchildrenkey1], size : d[opts.lastchildrenkey2] });
+              });
+          });
+
+          return newData;
+      }
+    
+      var data2 = getListJson(data,options)
+
+
+      var root = d3.hierarchy(data2)
+        .eachBefore(function(d) { d.id = (d.parent ? d.parent.id + "." : "") + d.data.name; })
+        .sum((d) => d.size)
+        .sort(function(a, b) {
+        //console.log('initial root sort a ' + a.value + ' b ' + b.value);
+        return b.height - a.height || b.value - a.value;
+        });
+
+
+
+      d3ZoomableTreemap(
+            'domainDrillDown', root,
+            {
+                // sum_function: function(d) {
+                //     if (!d.hasOwnProperty('children'))
+                //         return abs_in_year(2016, d.values);
+                //     else
+                //         return 0.0;
+                // },
+                width: 1000,
+                height: 500,
+                //zoom_out_msg: " - Click here to zoom out",
+                //zoom_in_msg: " - Click in squares to zoom in",
+                //fill_color: "#EDC4BD",
+                // format_number: formatAbbreviation
+            }
+        );
+
+}) // end of json 
+    </script>
+</body>
+</html>
